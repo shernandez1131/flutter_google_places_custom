@@ -26,6 +26,7 @@ class PlacesAutocompleteWidget extends StatefulWidget {
 
   /// The initial text to show in the search field.
   final String? startText;
+  final String? startTextAlt;
 
   /// The BorderRadius used for the dialog in [Mode.overlay].
   final BorderRadius? overlayBorderRadius;
@@ -180,6 +181,7 @@ class PlacesAutocompleteWidget extends StatefulWidget {
       this.proxyBaseUrl,
       this.httpClient,
       this.startText,
+      this.startTextAlt,
       this.debounce,
       this.headers,
       this.textDecoration,
@@ -417,6 +419,44 @@ class PlacesAutocompleteResult extends StatelessWidget {
   }
 }
 
+class PlacesAutocompleteResultAlt extends StatelessWidget {
+  final ValueChanged<Prediction> onTap;
+  final Widget? logo;
+  final TextStyle? resultTextStyle;
+
+  const PlacesAutocompleteResultAlt(
+      {Key? key, required this.onTap, required this.logo, this.resultTextStyle})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final state = PlacesAutocompleteWidget.of(context);
+
+    return RxStreamBuilder<_SearchState>(
+      stream: state._stateAlt$,
+      builder: (context, state) {
+        final response = state.response;
+
+        if (state.text.isEmpty ||
+            response == null ||
+            response.predictions.isEmpty) {
+          return Stack(
+            children: [
+              if (state.isSearching) _Loader(),
+              logo ?? const PoweredByGoogleImage()
+            ],
+          );
+        }
+        return PredictionsListView(
+          predictions: response.predictions,
+          onTap: onTap,
+          resultTextStyle: resultTextStyle,
+        );
+      },
+    );
+  }
+}
+
 class AppBarPlacesAutoCompleteTextField extends StatefulWidget {
   final InputDecoration? textDecoration;
   final TextStyle? textStyle;
@@ -445,7 +485,68 @@ class _AppBarPlacesAutoCompleteTextFieldState
         margin: const EdgeInsets.only(top: 2.0),
         child: TextField(
           controller: state._queryTextController,
-          autofocus: true,
+          style: widget.textStyle ?? _defaultStyle(),
+          decoration:
+              widget.textDecoration ?? _defaultDecoration(state.widget.hint),
+          cursorColor: widget.cursorColor,
+        ));
+  }
+
+  InputDecoration _defaultDecoration(String? hint) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: Theme.of(context).brightness == Brightness.light
+          ? Colors.white30
+          : Colors.black38,
+      hintStyle: TextStyle(
+        color: Theme.of(context).brightness == Brightness.light
+            ? Colors.black38
+            : Colors.white30,
+        fontSize: 16.0,
+      ),
+      border: InputBorder.none,
+    );
+  }
+
+  TextStyle _defaultStyle() {
+    return TextStyle(
+      color: Theme.of(context).brightness == Brightness.light
+          ? Colors.black.withOpacity(0.9)
+          : Colors.white.withOpacity(0.9),
+      fontSize: 16.0,
+    );
+  }
+}
+
+class AppBarPlacesAutoCompleteTextFieldAlt extends StatefulWidget {
+  final InputDecoration? textDecoration;
+  final TextStyle? textStyle;
+  final Color? cursorColor;
+
+  const AppBarPlacesAutoCompleteTextFieldAlt({
+    Key? key,
+    required this.textDecoration,
+    required this.textStyle,
+    required this.cursorColor,
+  }) : super(key: key);
+
+  @override
+  State<AppBarPlacesAutoCompleteTextFieldAlt> createState() =>
+      _AppBarPlacesAutoCompleteTextFieldStateAlt();
+}
+
+class _AppBarPlacesAutoCompleteTextFieldStateAlt
+    extends State<AppBarPlacesAutoCompleteTextFieldAlt> {
+  @override
+  Widget build(BuildContext context) {
+    final state = PlacesAutocompleteWidget.of(context);
+
+    return Container(
+        alignment: Alignment.topLeft,
+        margin: const EdgeInsets.only(top: 2.0),
+        child: TextField(
+          controller: state._queryTextControllerAlt,
           style: widget.textStyle ?? _defaultStyle(),
           decoration:
               widget.textDecoration ?? _defaultDecoration(state.widget.hint),
@@ -564,6 +665,13 @@ abstract class PlacesAutocompleteState extends State<PlacesAutocompleteWidget> {
           extentOffset: widget.startText?.length ?? 0,
         );
 
+  late final TextEditingController _queryTextControllerAlt =
+      TextEditingController(text: widget.startTextAlt)
+        ..selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: widget.startTextAlt?.length ?? 0,
+        );
+
   late final StateConnectableStream<_SearchState> _state$ =
       Single.fromCallable(() => const GoogleApiHeaders().getHeaders())
           .exhaustMap(createGoogleMapsPlaces)
@@ -579,12 +687,29 @@ abstract class PlacesAutocompleteState extends State<PlacesAutocompleteWidget> {
           )
           .publishState(const _SearchState(false, null, ''));
 
+  late final StateConnectableStream<_SearchState> _stateAlt$ =
+      Single.fromCallable(() => const GoogleApiHeaders().getHeaders())
+          .exhaustMap(createGoogleMapsPlaces)
+          .exhaustMap(
+            (places) => _queryTextControllerAlt
+                .toValueStream(replayValue: true)
+                .map((v) => v.text)
+                .debounceTime(
+                    widget.debounce ?? const Duration(milliseconds: 300))
+                .where((s) => s.isNotEmpty)
+                .distinct()
+                .switchMap((s) => _doSearch(s, places)),
+          )
+          .publishState(const _SearchState(false, null, ''));
+
   StreamSubscription<void>? _subscription;
+  StreamSubscription<void>? _subscriptionAlt;
 
   @override
   void initState() {
     super.initState();
     _subscription = _state$.connect();
+    _subscriptionAlt = _stateAlt$.connect();
   }
 
   Stream<GoogleMapsPlaces> createGoogleMapsPlaces(Map<String, String> headers) {
@@ -666,11 +791,22 @@ abstract class PlacesAutocompleteState extends State<PlacesAutocompleteWidget> {
     }
   }
 
+  void updateTextField(Prediction prediction, String type) {
+    if (type == 'start') {
+      _queryTextController.text = prediction.description ?? "";
+    } else {
+      _queryTextControllerAlt.text = prediction.description ?? "";
+    }
+  }
+
   @override
   void dispose() {
     _subscription?.cancel();
     _subscription = null;
+    _subscriptionAlt?.cancel();
+    _subscriptionAlt = null;
     _queryTextController.dispose();
+    _queryTextControllerAlt.dispose();
 
     super.dispose();
   }
@@ -738,6 +874,7 @@ abstract class PlacesAutocomplete {
       String? proxyBaseUrl,
       Client? httpClient,
       String? startText,
+      String? startTextAlt,
       Duration? debounce,
       Location? origin,
       Map<String, String>? headers,
@@ -767,6 +904,7 @@ abstract class PlacesAutocomplete {
           proxyBaseUrl: proxyBaseUrl,
           httpClient: httpClient,
           startText: startText,
+          startTextAlt: startTextAlt,
           debounce: debounce,
           origin: origin,
           headers: headers,
