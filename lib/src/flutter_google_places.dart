@@ -210,10 +210,10 @@ class _PlacesAutocompleteScaffoldState extends PlacesAutocompleteState {
   Widget build(BuildContext context) {
     final appBar = AppBar(
       title: AppBarPlacesAutoCompleteTextField(
-        textDecoration: widget.textDecoration,
-        textStyle: widget.textStyle,
-        cursorColor: widget.cursorColor,
-      ),
+          textDecoration: widget.textDecoration,
+          textStyle: widget.textStyle,
+          cursorColor: widget.cursorColor,
+          isFocused: true),
     );
     final body = PlacesAutocompleteResult(
       onTap: Navigator.of(context).pop,
@@ -461,12 +461,14 @@ class AppBarPlacesAutoCompleteTextField extends StatefulWidget {
   final InputDecoration? textDecoration;
   final TextStyle? textStyle;
   final Color? cursorColor;
+  final bool isFocused;
 
   const AppBarPlacesAutoCompleteTextField({
     Key? key,
     required this.textDecoration,
     required this.textStyle,
     required this.cursorColor,
+    required this.isFocused,
   }) : super(key: key);
 
   @override
@@ -481,15 +483,40 @@ class _AppBarPlacesAutoCompleteTextFieldState
     final state = PlacesAutocompleteWidget.of(context);
 
     return Container(
-        alignment: Alignment.topLeft,
-        margin: const EdgeInsets.only(top: 2.0),
+      alignment: Alignment.topLeft,
+      margin: const EdgeInsets.only(top: 2.0),
+      child: Material(
+        elevation: 4.0,
+        borderRadius: BorderRadius.circular(30.0),
         child: TextField(
           controller: state._queryTextController,
           style: widget.textStyle ?? _defaultStyle(),
-          decoration:
-              widget.textDecoration ?? _defaultDecoration(state.widget.hint),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            hintText: '¿Cuál es tu punto de partida?',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30.0),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 14.0, horizontal: 0.0),
+            prefixIcon: const Icon(Icons.location_on),
+            suffixIcon: widget.isFocused
+                ? IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      setState(() {
+                        state._queryTextController.clear();
+                      });
+                    },
+                  )
+                : null,
+          ),
           cursorColor: widget.cursorColor,
-        ));
+        ),
+      ),
+    );
   }
 
   InputDecoration _defaultDecoration(String? hint) {
@@ -523,12 +550,14 @@ class AppBarPlacesAutoCompleteTextFieldAlt extends StatefulWidget {
   final InputDecoration? textDecoration;
   final TextStyle? textStyle;
   final Color? cursorColor;
+  final bool isFocused;
 
   const AppBarPlacesAutoCompleteTextFieldAlt({
     Key? key,
     required this.textDecoration,
     required this.textStyle,
     required this.cursorColor,
+    required this.isFocused,
   }) : super(key: key);
 
   @override
@@ -543,15 +572,40 @@ class _AppBarPlacesAutoCompleteTextFieldStateAlt
     final state = PlacesAutocompleteWidget.of(context);
 
     return Container(
-        alignment: Alignment.topLeft,
-        margin: const EdgeInsets.only(top: 2.0),
+      alignment: Alignment.topLeft,
+      margin: const EdgeInsets.only(top: 2.0),
+      child: Material(
+        elevation: 4.0,
+        borderRadius: BorderRadius.circular(30.0),
         child: TextField(
           controller: state._queryTextControllerAlt,
           style: widget.textStyle ?? _defaultStyle(),
-          decoration:
-              widget.textDecoration ?? _defaultDecoration(state.widget.hint),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            hintText: '¿Cuál es tu punto de llegada?',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30.0),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 14.0, horizontal: 0.0),
+            prefixIcon: const Icon(Icons.location_on),
+            suffixIcon: widget.isFocused
+                ? IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      setState(() {
+                        state._queryTextControllerAlt.clear();
+                      });
+                    },
+                  )
+                : null,
+          ),
           cursorColor: widget.cursorColor,
-        ));
+        ),
+      ),
+    );
   }
 
   InputDecoration _defaultDecoration(String? hint) {
